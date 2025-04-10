@@ -1,32 +1,221 @@
-<script type="module">
-    import { getBot } from './firebase.js';
-
-    if (window.location.hash) {
-        const botId = window.location.hash.substring(1);
-        const botData = await getBot(botId);
-
-        if (botData) {
-            const iframe = document.getElementById('bot-iframe');
-            iframe.src = botData.targetUrl;
-
-            // Scroll adaptativo (basado en repeticiones)
-            let repetitions = 0;
-            const totalRepetitions = botData.repetitions;
-            const durationPerRepetition = (botData.duration * 1000) / totalRepetitions;
-
-            const scrollInterval = setInterval(() => {
-                if (repetitions >= totalRepetitions) {
-                    clearInterval(scrollInterval);
-                    return;
-                }
-
-                // Scroll hacia abajo y luego arriba
-                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-                setTimeout(() => {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                    repetitions++;
-                }, durationPerRepetition / 2);
-            }, durationPerRepetition);
-        }
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bot PrexTraffic | En Acción</title>
+  <style>
+    :root {
+      --primary: #6a11cb;
+      --secondary: #2575fc;
+      --dark: #1a1a2e;
+      --light: #f8f9fa;
     }
-</script>
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--dark);
+      color: var(--light);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+    }
+
+    .header {
+      padding: 2rem;
+      width: 100%;
+      background: linear-gradient(to right, var(--primary), var(--secondary));
+    }
+
+    .bot-container {
+      width: 100%;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    iframe {
+      flex: 1;
+      width: 100%;
+      border: none;
+    }
+
+    .controls {
+      padding: 1rem;
+      background: rgba(0, 0, 0, 0.3);
+      width: 100%;
+    }
+
+    .progress-container {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      margin: 1rem 0;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 10px;
+      background: linear-gradient(to right, var(--primary), var(--secondary));
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    .stats {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 1rem;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: var(--secondary);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Bot PrexTraffic en Acción</h1>
+  </div>
+  
+  <div class="progress-container">
+    <div class="progress-bar" id="progress-bar"></div>
+  </div>
+  
+  <div class="stats">
+    <div class="stat-item">
+      <div class="stat-value" id="repetitions-count">0</div>
+      <div>Repeticiones</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="time-left">0</div>
+      <div>Segundos restantes</div>
+    </div>
+  </div>
+  
+  <div class="bot-container">
+    <iframe id="bot-iframe" sandbox="allow-scripts allow-same-origin"></iframe>
+  </div>
+  
+  <div class="controls">
+    <button id="stop-btn">Detener Bot</button>
+  </div>
+
+  <script src="firebase.js" type="module"></script>
+  <script type="module">
+    import { getBot } from './firebase.js';
+    
+    // Elementos del DOM
+    const iframe = document.getElementById('bot-iframe');
+    const progressBar = document.getElementById('progress-bar');
+    const repetitionsCount = document.getElementById('repetitions-count');
+    const timeLeft = document.getElementById('time-left');
+    const stopBtn = document.getElementById('stop-btn');
+    
+    // Variables de control
+    let scrollInterval;
+    let totalTime = 0;
+    let remainingTime = 0;
+    let totalRepetitions = 0;
+    let completedRepetitions = 0;
+    let speedMultiplier = 1;
+    
+    // Obtener parámetros del bot
+    if (window.location.hash) {
+      const botId = window.location.hash.substring(1);
+      loadBot(botId);
+    } else {
+      document.body.innerHTML = '<h2>Error: No se especificó un bot</h2>';
+    }
+    
+    async function loadBot(botId) {
+      try {
+        const botData = await getBot(botId);
+        
+        if (!botData) {
+          document.body.innerHTML = '<h2>Error: Bot no encontrado</h2>';
+          return;
+        }
+        
+        // Configurar parámetros
+        totalTime = botData.duration;
+        remainingTime = totalTime;
+        totalRepetitions = botData.repetitions;
+        
+        // Ajustar velocidad
+        switch(botData.speed) {
+          case 'slow': speedMultiplier = 0.5; break;
+          case 'fast': speedMultiplier = 2; break;
+          default: speedMultiplier = 1;
+        }
+        
+        // Cargar la URL
+        iframe.src = botData.url;
+        
+        // Iniciar bot después de 3 segundos
+        setTimeout(startBot, 3000);
+        
+        // Actualizar contadores cada segundo
+        setInterval(updateCounters, 1000);
+        
+      } catch (error) {
+        console.error('Error:', error);
+        document.body.innerHTML = '<h2>Error al cargar el bot</h2>';
+      }
+    }
+    
+    function startBot() {
+      let scrollDirection = 1;
+      const scrollStep = 50 * speedMultiplier;
+      const intervalTime = 100 / speedMultiplier;
+      
+      scrollInterval = setInterval(() => {
+        if (completedRepetitions >= totalRepetitions) {
+          stopBot();
+          return;
+        }
+        
+        iframe.contentWindow.scrollBy(0, scrollDirection * scrollStep);
+        
+        const maxScroll = iframe.contentDocument.body.scrollHeight - iframe.clientHeight;
+        const currentScroll = iframe.contentWindow.scrollY;
+        
+        if (currentScroll >= maxScroll || currentScroll <= 0) {
+          scrollDirection *= -1;
+          completedRepetitions++;
+          repetitionsCount.textContent = completedRepetitions;
+        }
+        
+        // Actualizar progreso
+        const progress = (completedRepetitions / totalRepetitions) * 100;
+        progressBar.style.width = `${progress}%`;
+        
+      }, intervalTime);
+    }
+    
+    function stopBot() {
+      clearInterval(scrollInterval);
+      alert('Interacción completada');
+    }
+    
+    function updateCounters() {
+      if (remainingTime > 0) {
+        remainingTime--;
+        timeLeft.textContent = remainingTime;
+      }
+    }
+    
+    stopBtn.addEventListener('click', stopBot);
+  </script>
+</body>
+</html>

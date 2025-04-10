@@ -3,7 +3,13 @@ import {
   getFirestore, 
   doc, 
   setDoc, 
-  getDoc 
+  getDoc,
+  deleteDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -16,37 +22,58 @@ const firebaseConfig = {
   measurementId: "G-0LDNZ5LRCE"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Función para guardar un nuevo bot
-export const saveBot = async (botId, botData) => {
+// Función para generar ID de 8 caracteres
+function generateShortId() {
+  return Math.random().toString(36).substring(2, 10);
+}
+
+export const saveBot = async (botData) => {
   try {
+    const botId = `${Math.floor(Math.random() * 10)}/${generateShortId()}`;
     await setDoc(doc(db, "bots", botId), {
       url: botData.url,
       duration: botData.duration,
       repetitions: botData.repetitions,
       speed: botData.speed,
-      createdAt: botData.createdAt
+      createdAt: serverTimestamp()
     });
-    return true;
+    return botId;
   } catch (error) {
     console.error("Error saving bot:", error);
-    return false;
+    return null;
   }
 };
 
-// Función para obtener configuración de un bot
 export const getBot = async (botId) => {
   try {
     const docSnap = await getDoc(doc(db, "bots", botId));
-    if (docSnap.exists()) {
-      return docSnap.data();
-    }
-    return null;
+    return docSnap.exists() ? docSnap.data() : null;
   } catch (error) {
     console.error("Error getting bot:", error);
     return null;
+  }
+};
+
+export const listBots = async () => {
+  try {
+    const q = query(collection(db, "bots"));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error("Error listing bots:", error);
+    return [];
+  }
+};
+
+export const deleteBot = async (botId) => {
+  try {
+    await deleteDoc(doc(db, "bots", botId));
+    return true;
+  } catch (error) {
+    console.error("Error deleting bot:", error);
+    return false;
   }
 };

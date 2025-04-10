@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bot PrexTraffic | En Acción</title>
+  <title>Bot PrexTraffic | Navegación Real</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -23,7 +23,6 @@
       display: flex;
       flex-direction: column;
       min-height: 100vh;
-      overflow: hidden; /* Evita scroll no deseado */
     }
 
     .header {
@@ -41,11 +40,7 @@
       justify-content: space-around;
       padding: 1rem;
       background: rgba(0, 0, 0, 0.3);
-      margin-top: 60px; /* Ajuste por header fijo */
-    }
-
-    .stat {
-      text-align: center;
+      margin-top: 60px;
     }
 
     .stat-value {
@@ -67,18 +62,12 @@
       transition: width 0.5s;
     }
 
-    .bot-container {
-      flex: 1;
-      position: relative;
-      margin-top: 120px; /* Espacio para header y stats */
-      height: calc(100vh - 180px); /* Altura completa menos otros elementos */
-    }
-
-    iframe {
+    #viewport {
       width: 100%;
-      height: 100%;
+      height: calc(100vh - 180px);
+      margin-top: 120px;
       border: none;
-      display: block;
+      overflow: auto;
     }
 
     .controls {
@@ -98,19 +87,12 @@
       border-radius: 5px;
       font-weight: bold;
       cursor: pointer;
-      transition: all 0.3s;
-    }
-
-    .error-container {
-      padding: 2rem;
-      text-align: center;
-      margin-top: 60px;
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>Bot PrexTraffic en Acción</h1>
+    <h1>Bot PrexTraffic | Navegación Avanzada</h1>
   </div>
 
   <div class="stats-container">
@@ -132,13 +114,8 @@
     <div class="progress-bar" id="progress-bar"></div>
   </div>
 
-  <div class="bot-container">
-    <iframe 
-      id="bot-iframe" 
-      sandbox="allow-scripts allow-same-origin allow-forms"
-      allowfullscreen
-    ></iframe>
-  </div>
+  <!-- Contenedor del renderizado (reemplaza al iframe) -->
+  <div id="viewport"></div>
 
   <div class="controls">
     <button class="stop-btn" id="stop-btn">Detener Bot</button>
@@ -149,7 +126,7 @@
     import { getBot } from './firebase.js';
 
     // Elementos del DOM
-    const iframe = document.getElementById('bot-iframe');
+    const viewport = document.getElementById('viewport');
     const currentRepEl = document.getElementById('current-repetition');
     const totalRepsEl = document.getElementById('total-repetitions');
     const timeLeftEl = document.getElementById('time-left');
@@ -159,8 +136,6 @@
     // Variables de estado
     let botConfig = null;
     let currentRepetition = 0;
-    let scrollInterval;
-    let timerInterval;
     let isRunning = false;
     let targetTime = 0;
 
@@ -179,7 +154,6 @@
           showError('Bot no encontrado');
           return;
         }
-
         botConfig = config;
         totalRepsEl.textContent = botConfig.repetitions;
         startBot();
@@ -191,13 +165,12 @@
 
     function startBot() {
       if (!botConfig || isRunning) return;
-
       isRunning = true;
       currentRepetition = 0;
       startCycle();
     }
 
-    function startCycle() {
+    async function startCycle() {
       currentRepetition++;
       if (currentRepetition > botConfig.repetitions) {
         endBot();
@@ -205,124 +178,67 @@
       }
 
       currentRepEl.textContent = currentRepetition;
-      loadUrlInIframe(botConfig.url);
-
-      // Configurar tiempo objetivo para evitar desincronización
-      targetTime = Date.now() + botConfig.duration * 1000;
+      await loadPage(botConfig.url); // Renderizar página
       startTimer();
-      startScrolling();
+      startAutoInteractions(); // Scroll/clicks automáticos
     }
 
-    function loadUrlInIframe(url) {
-      iframe.onerror = () => showFallbackContent(url);
-      iframe.src = url;
-    }
-
-    function showFallbackContent(url) {
-      iframe.srcdoc = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body { 
-              font-family: 'Poppins', sans-serif;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              height: 100vh;
-              margin: 0;
-              background: #1a1a2e;
-              color: #f8f9fa;
-              text-align: center;
-            }
-            .fallback-btn {
-              background: #2575fc;
-              color: white;
-              border: none;
-              padding: 0.8rem 1.5rem;
-              border-radius: 5px;
-              font-weight: bold;
-              cursor: pointer;
-              margin-top: 1rem;
-              display: inline-block;
-              text-decoration: none;
-            }
-          </style>
-        </head>
-        <body>
-          <div>
-            <h2>⚠️ No se puede mostrar esta página</h2>
-            <a href="${url}" target="_blank" class="fallback-btn">Abrir en nueva pestaña</a>
+    async function loadPage(url) {
+      try {
+        const response = await fetch(`http://localhost:3000/render?url=${encodeURIComponent(url)}`);
+        const html = await response.text();
+        viewport.innerHTML = html;
+      } catch (error) {
+        viewport.innerHTML = `
+          <div style="padding: 2rem; text-align: center; color: white;">
+            <h2>⚠️ Error al cargar la página</h2>
+            <p>URL: ${url}</p>
+            <a href="${url}" target="_blank" style="color: #2575fc;">Abrir en nueva pestaña</a>
           </div>
-        </body>
-        </html>
-      `;
-    }
-
-    function startTimer() {
-      clearInterval(timerInterval);
-      updateTimer(); // Actualización inmediata
-
-      timerInterval = setInterval(updateTimer, 200); // Actualización suave
-    }
-
-    function updateTimer() {
-      const now = Date.now();
-      const remaining = Math.max(0, Math.ceil((targetTime - now) / 1000));
-      
-      timeLeftEl.textContent = remaining;
-      const progress = 100 - (remaining / botConfig.duration * 100);
-      progressBar.style.width = `${progress}%`;
-
-      if (remaining <= 0) {
-        clearInterval(timerInterval);
-        endCycle();
+        `;
       }
     }
 
-    function startScrolling() {
-      clearInterval(scrollInterval);
-      let scrollDirection = 1;
-      const speed = botConfig.speed === 'fast' ? 2 : botConfig.speed === 'slow' ? 0.5 : 1;
+    function startTimer() {
+      targetTime = Date.now() + botConfig.duration * 1000;
+      updateTimer();
+      const timer = setInterval(updateTimer, 200);
 
-      scrollInterval = setInterval(() => {
-        try {
-          if (iframe.contentWindow) {
-            const scrollY = iframe.contentWindow.scrollY;
-            const maxScroll = iframe.contentDocument.body.scrollHeight - iframe.clientHeight;
-            
-            if (scrollY >= maxScroll || scrollY <= 0) {
-              scrollDirection *= -1;
-            }
-            
-            iframe.contentWindow.scrollBy({
-              top: 50 * scrollDirection * speed,
-              behavior: 'smooth'
-            });
-          }
-        } catch (error) {
-          console.log('Scroll no disponible:', error);
+      function updateTimer() {
+        const remaining = Math.max(0, Math.ceil((targetTime - Date.now()) / 1000));
+        timeLeftEl.textContent = remaining;
+        progressBar.style.width = `${100 - (remaining / botConfig.duration * 100)}%`;
+
+        if (remaining <= 0) {
+          clearInterval(timer);
+          endCycle();
         }
-      }, 100);
+      }
     }
 
-    function endCycle() {
-      clearInterval(scrollInterval);
-      setTimeout(startCycle, 1000);
+    function startAutoInteractions() {
+      // Scroll automático suave
+      const scrollInterval = setInterval(() => {
+        viewport.scrollBy({
+          top: 50,
+          behavior: 'smooth'
+        });
+      }, 1000);
+
+      // Detener al finalizar el ciclo
+      setTimeout(() => clearInterval(scrollInterval), botConfig.duration * 1000);
     }
 
     function endBot() {
       isRunning = false;
-      clearInterval(scrollInterval);
-      clearInterval(timerInterval);
       alert('Proceso completado');
     }
 
     function showError(message) {
       document.body.innerHTML = `
-        <div class="error-container">
-          <h2>${message}</h2>
-          <p><a href="/">Volver al generador</a></p>
+        <div style="padding: 2rem; text-align: center;">
+          <h2 style="color: var(--danger);">${message}</h2>
+          <a href="/" style="color: var(--secondary);">Volver al generador</a>
         </div>
       `;
     }

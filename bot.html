@@ -3,17 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bot PrexTraffic | En Acción</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <title>Bot PrexTraffic</title>
   <style>
     :root {
       --primary: #6a11cb;
       --secondary: #2575fc;
       --dark: #1a1a2e;
       --light: #f8f9fa;
-      --danger: #d63031;
     }
-
+    
     body {
       font-family: 'Poppins', sans-serif;
       margin: 0;
@@ -22,86 +20,76 @@
       color: var(--light);
       display: flex;
       flex-direction: column;
-      min-height: 100vh;
+      height: 100vh;
     }
-
+    
     .header {
-      padding: 1.5rem;
       background: linear-gradient(to right, var(--primary), var(--secondary));
+      padding: 1.5rem;
       text-align: center;
     }
-
-    .stats-container {
+    
+    .stats {
       display: flex;
       justify-content: space-around;
       padding: 1rem;
       background: rgba(0, 0, 0, 0.3);
     }
-
+    
     .stat {
       text-align: center;
     }
-
+    
     .stat-value {
       font-size: 1.5rem;
       font-weight: bold;
       color: var(--secondary);
     }
-
-    .progress-container {
-      width: 100%;
-      height: 10px;
-      background: rgba(255, 255, 255, 0.1);
-    }
-
-    .progress-bar {
-      height: 100%;
-      background: linear-gradient(to right, var(--primary), var(--secondary));
-      width: 0%;
-      transition: width 0.5s;
-    }
-
-    .bot-container {
+    
+    .iframe-container {
       flex: 1;
       position: relative;
     }
-
+    
     iframe {
       width: 100%;
       height: 100%;
       border: none;
     }
-
+    
+    .loading {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.7);
+      font-size: 1.2rem;
+    }
+    
     .controls {
       padding: 1rem;
       text-align: center;
       background: rgba(0, 0, 0, 0.3);
     }
-
-    .stop-btn {
-      background: var(--danger);
+    
+    button {
+      background: var(--secondary);
       color: white;
       border: none;
       padding: 0.8rem 1.5rem;
       border-radius: 5px;
       font-weight: bold;
       cursor: pointer;
-      transition: all 0.3s;
     }
-
-    .stop-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-    }
-
-    .error-container {
+    
+    .error {
       padding: 2rem;
       text-align: center;
-    }
-
-    .error-container h2 {
-      color: var(--danger);
-      margin-bottom: 1rem;
+      color: #ff6b6b;
     }
   </style>
 </head>
@@ -109,173 +97,161 @@
   <div class="header">
     <h1>Bot PrexTraffic en Acción</h1>
   </div>
-
-  <div class="stats-container">
+  
+  <div class="stats">
     <div class="stat">
-      <div class="stat-value" id="current-repetition">0</div>
-      <div>Repetición</div>
+      <div class="stat-value" id="current-cycle">0</div>
+      <div>Ciclo actual</div>
     </div>
     <div class="stat">
-      <div class="stat-value" id="total-repetitions">0</div>
-      <div>Total</div>
+      <div class="stat-value" id="total-cycles">0</div>
+      <div>Total ciclos</div>
     </div>
     <div class="stat">
       <div class="stat-value" id="time-left">0</div>
       <div>Segundos</div>
     </div>
   </div>
-
-  <div class="progress-container">
-    <div class="progress-bar" id="progress-bar"></div>
-  </div>
-
-  <div class="bot-container">
+  
+  <div class="iframe-container">
+    <div id="loading" class="loading">
+      Cargando página, por favor espera...
+    </div>
     <iframe id="bot-iframe" sandbox="allow-scripts allow-same-origin"></iframe>
   </div>
-
+  
   <div class="controls">
-    <button class="stop-btn" id="stop-btn">Detener Bot</button>
+    <button id="stop-btn">Detener Bot</button>
   </div>
 
   <script src="firebase.js" type="module"></script>
   <script type="module">
     import { getBot } from './firebase.js';
-
-    // Elementos del DOM
-    const iframe = document.getElementById('bot-iframe');
-    const currentRepEl = document.getElementById('current-repetition');
-    const totalRepsEl = document.getElementById('total-repetitions');
-    const timeLeftEl = document.getElementById('time-left');
-    const progressBar = document.getElementById('progress-bar');
-    const stopBtn = document.getElementById('stop-btn');
-
-    // Variables de estado
-    let botConfig = null;
-    let currentRepetition = 0;
-    let scrollInterval;
-    let timerInterval;
-    let isRunning = false;
-
-    // Inicializar
-    if (window.location.hash) {
-      const botId = window.location.hash.substring(1);
-      loadBotConfig(botId);
+    
+    // Obtener el ID del bot de la URL
+    const pathParts = window.location.pathname.split('/').filter(p => p);
+    const botId = pathParts.join('/');
+    
+    if (!botId) {
+      showError('URL de bot inválida');
     } else {
-      showError('No se especificó un bot');
+      loadBot(botId);
     }
-
-    async function loadBotConfig(botId) {
+    
+    async function loadBot(botId) {
       try {
-        const config = await getBot(botId);
-        if (!config) {
+        const botData = await getBot(botId);
+        
+        if (!botData) {
           showError('Bot no encontrado');
           return;
         }
-
-        botConfig = config;
-        totalRepsEl.textContent = botConfig.repetitions;
-        startBot();
+        
+        startBot(botData);
       } catch (error) {
+        console.error('Error:', error);
         showError('Error al cargar el bot');
-        console.error(error);
       }
     }
-
-    function startBot() {
-      if (!botConfig || isRunning) return;
-
-      isRunning = true;
-      currentRepetition = 0;
+    
+    function startBot(config) {
+      document.getElementById('total-cycles').textContent = config.repetitions;
+      
+      let currentCycle = 0;
+      let timer;
+      
+      function startCycle() {
+        currentCycle++;
+        if (currentCycle > config.repetitions) {
+          endBot();
+          return;
+        }
+        
+        document.getElementById('current-cycle').textContent = currentCycle;
+        document.getElementById('loading').style.display = 'flex';
+        
+        // Reset iframe
+        const iframe = document.getElementById('bot-iframe');
+        iframe.src = 'about:blank';
+        
+        setTimeout(() => {
+          iframe.src = config.url;
+          
+          iframe.onload = () => {
+            document.getElementById('loading').style.display = 'none';
+            startTimer();
+            startScrolling();
+          };
+          
+          iframe.onerror = () => {
+            document.getElementById('loading').textContent = 'Error al cargar la página';
+            setTimeout(() => startCycle(), 2000);
+          };
+        }, 500);
+      }
+      
+      function startTimer() {
+        let seconds = config.duration;
+        document.getElementById('time-left').textContent = seconds;
+        
+        timer = setInterval(() => {
+          seconds--;
+          document.getElementById('time-left').textContent = seconds;
+          
+          if (seconds <= 0) {
+            clearInterval(timer);
+            startCycle();
+          }
+        }, 1000);
+      }
+      
+      function startScrolling() {
+        let direction = 1;
+        const iframe = document.getElementById('bot-iframe');
+        const scrollInterval = setInterval(() => {
+          try {
+            iframe.contentWindow.scrollBy(0, 50 * direction);
+            
+            const doc = iframe.contentDocument;
+            const currentScroll = iframe.contentWindow.scrollY;
+            const maxScroll = doc.body.scrollHeight - iframe.clientHeight;
+            
+            if (currentScroll >= maxScroll || currentScroll <= 0) {
+              direction *= -1;
+            }
+          } catch (error) {
+            console.error('Error en scroll:', error);
+          }
+        }, 100);
+        
+        // Limpiar al final del ciclo
+        setTimeout(() => clearInterval(scrollInterval), config.duration * 1000);
+      }
+      
+      function endBot() {
+        clearInterval(timer);
+        alert('Proceso completado');
+      }
+      
+      document.getElementById('stop-btn').onclick = () => {
+        if (confirm('¿Detener el bot ahora?')) {
+          clearInterval(timer);
+          alert('Bot detenido');
+        }
+      };
+      
+      // Iniciar primer ciclo
       startCycle();
     }
-
-    function startCycle() {
-      currentRepetition++;
-      if (currentRepetition > botConfig.repetitions) {
-        endBot();
-        return;
-      }
-
-      currentRepEl.textContent = currentRepetition;
-      iframe.src = botConfig.url;
-
-      // Esperar a que cargue el iframe
-      iframe.onload = () => {
-        startTimer();
-        startScrolling();
-      };
-    }
-
-    function startTimer() {
-      let timeLeft = botConfig.duration;
-      timeLeftEl.textContent = timeLeft;
-
-      timerInterval = setInterval(() => {
-        timeLeft--;
-        timeLeftEl.textContent = timeLeft;
-
-        // Actualizar barra de progreso
-        const progress = 100 - ((timeLeft / botConfig.duration) * 100);
-        progressBar.style.width = `${progress}%`;
-
-        if (timeLeft <= 0) {
-          clearInterval(timerInterval);
-          endCycle();
-        }
-      }, 1000);
-    }
-
-    function startScrolling() {
-      let scrollDirection = 1;
-      const scrollAmount = 50 * botConfig.speed;
-
-      scrollInterval = setInterval(() => {
-        try {
-          iframe.contentWindow.scrollBy(0, scrollDirection * scrollAmount);
-          
-          const doc = iframe.contentDocument;
-          const currentScroll = iframe.contentWindow.scrollY;
-          const maxScroll = doc.body.scrollHeight - iframe.clientHeight;
-
-          if (currentScroll >= maxScroll || currentScroll <= 0) {
-            scrollDirection *= -1;
-          }
-        } catch (error) {
-          console.error('Error en scroll:', error);
-        }
-      }, 100 / botConfig.speed);
-    }
-
-    function endCycle() {
-      clearInterval(scrollInterval);
-      
-      // Esperar 1 segundo antes de recargar
-      setTimeout(() => {
-        startCycle();
-      }, 1000);
-    }
-
-    function endBot() {
-      isRunning = false;
-      clearInterval(scrollInterval);
-      clearInterval(timerInterval);
-      alert('Proceso completado');
-    }
-
+    
     function showError(message) {
       document.body.innerHTML = `
-        <div class="error-container">
+        <div class="error">
           <h2>${message}</h2>
           <p><a href="/">Volver al generador</a></p>
         </div>
       `;
     }
-
-    stopBtn.addEventListener('click', () => {
-      if (confirm('¿Detener el bot ahora?')) {
-        endBot();
-      }
-    });
   </script>
 </body>
 </html>

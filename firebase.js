@@ -2,13 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebas
 import { 
   getFirestore, 
   doc, 
-  setDoc, 
-  getDoc,
-  deleteDoc,
-  collection,
-  query,
-  where,
-  getDocs,
+  setDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 
@@ -22,17 +16,23 @@ const firebaseConfig = {
   measurementId: "G-0LDNZ5LRCE"
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Función para generar ID de 8 caracteres
+// Función para generar ID corto
 function generateShortId() {
   return Math.random().toString(36).substring(2, 10);
 }
 
 export const saveBot = async (botData) => {
   try {
+    console.log("Iniciando guardado de bot...");
     const botId = `${Math.floor(Math.random() * 10)}/${generateShortId()}`;
+    
+    console.log("ID generado:", botId);
+    console.log("Datos a guardar:", botData);
+    
     await setDoc(doc(db, "bots", botId), {
       url: botData.url,
       duration: botData.duration,
@@ -40,40 +40,11 @@ export const saveBot = async (botData) => {
       speed: botData.speed,
       createdAt: serverTimestamp()
     });
+    
+    console.log("Bot guardado exitosamente");
     return botId;
   } catch (error) {
-    console.error("Error saving bot:", error);
+    console.error("Error en saveBot:", error);
     return null;
-  }
-};
-
-export const getBot = async (botId) => {
-  try {
-    const docSnap = await getDoc(doc(db, "bots", botId));
-    return docSnap.exists() ? docSnap.data() : null;
-  } catch (error) {
-    console.error("Error getting bot:", error);
-    return null;
-  }
-};
-
-export const listBots = async () => {
-  try {
-    const q = query(collection(db, "bots"));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  } catch (error) {
-    console.error("Error listing bots:", error);
-    return [];
-  }
-};
-
-export const deleteBot = async (botId) => {
-  try {
-    await deleteDoc(doc(db, "bots", botId));
-    return true;
-  } catch (error) {
-    console.error("Error deleting bot:", error);
-    return false;
   }
 };

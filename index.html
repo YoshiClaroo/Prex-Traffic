@@ -87,13 +87,12 @@
       padding: 1rem;
       border-radius: 8px;
       margin-bottom: 1rem;
-      display: flex;
-      justify-content: space-between;
     }
     
     .delete-btn {
       background: var(--danger) !important;
       padding: 0.5rem 1rem;
+      margin-top: 0.5rem;
     }
   </style>
 </head>
@@ -117,7 +116,7 @@
         <input type="number" id="repetitions" min="50" value="100" required>
       </div>
       
-      <button type="submit">Generar Bot</button>
+      <button type="submit" id="generate-btn">Generar Bot</button>
     </form>
     
     <div id="result-container" class="result-container">
@@ -136,14 +135,22 @@
   <script type="module">
     import { saveBot, listBots, deleteBot } from './firebase.js';
     
-    document.getElementById('bot-form').addEventListener('submit', async (e) => {
+    const generateBtn = document.getElementById('generate-btn');
+    
+    generateBtn.addEventListener('click', async (e) => {
       e.preventDefault();
+      generateBtn.disabled = true;
+      generateBtn.textContent = 'Generando...';
       
       const targetUrl = document.getElementById('target-url').value;
       const duration = document.getElementById('duration').value;
       const repetitions = document.getElementById('repetitions').value;
       
       try {
+        if (!targetUrl.startsWith('http')) {
+          throw new Error('La URL debe comenzar con http:// o https://');
+        }
+        
         const botId = await saveBot({
           url: targetUrl,
           duration: parseInt(duration),
@@ -161,41 +168,54 @@
             alert('Enlace copiado!');
           };
           
-          loadBots();
+          await loadBots();
+        } else {
+          throw new Error('No se pudo generar el ID del bot');
         }
       } catch (error) {
-        console.error('Error:', error);
-        alert('Ocurrió un error al generar el bot');
+        alert('Error: ' + error.message);
+        console.error(error);
+      } finally {
+        generateBtn.disabled = false;
+        generateBtn.textContent = 'Generar Bot';
       }
     });
     
     async function loadBots() {
-      const bots = await listBots();
-      const container = document.getElementById('bots-container');
-      container.innerHTML = '';
-      
-      bots.forEach(bot => {
-        const botUrl = `https://prextraffic.netlify.app/${bot.id}`;
-        const botItem = document.createElement('div');
-        botItem.className = 'bot-item';
-        botItem.innerHTML = `
-          <div>
-            <strong>${bot.url}</strong><br>
-            <small>${bot.duration}s × ${bot.repetitions} repeticiones</small>
-          </div>
-          <div>
-            <a href="${botUrl}" target="_blank">Ver</a>
-            <button class="delete-btn" onclick="deleteBot('${bot.id}')">Eliminar</button>
-          </div>
-        `;
-        container.appendChild(botItem);
-      });
+      try {
+        const bots = await listBots();
+        const container = document.getElementById('bots-container');
+        container.innerHTML = '';
+        
+        if (bots.length === 0) {
+          container.innerHTML = '<p>No has generado bots aún</p>';
+          return;
+        }
+        
+        bots.forEach(bot => {
+          const botUrl = `https://prextraffic.netlify.app/${bot.id}`;
+          const botItem = document.createElement('div');
+          botItem.className = 'bot-item';
+          botItem.innerHTML = `
+            <p><strong>URL:</strong> ${bot.url}</p>
+            <p><strong>Duración:</strong> ${bot.duration} segundos</p>
+            <p><strong>Repeticiones:</strong> ${bot.repetitions}</p>
+            <div>
+              <a href="${botUrl}" target="_blank">Ver Bot</a>
+              <button class="delete-btn" onclick="deleteBot('${bot.id}')">Eliminar</button>
+            </div>
+          `;
+          container.appendChild(botItem);
+        });
+      } catch (error) {
+        console.error('Error cargando bots:', error);
+      }
     }
     
     window.deleteBot = async (botId) => {
       if (confirm('¿Eliminar este bot permanentemente?')) {
         await deleteBot(botId);
-        loadBots();
+        await loadBots();
       }
     };
     

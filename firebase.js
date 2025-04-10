@@ -3,7 +3,12 @@ import {
   getFirestore, 
   doc, 
   setDoc, 
-  serverTimestamp 
+  getDoc, 
+  deleteDoc, 
+  collection,
+  query,
+  where,
+  getDocs 
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -19,25 +24,44 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Función para generar ID en formato "numero/letras" (ej: "7/h5b35b4a")
-function generateBotId() {
-  return `${Math.floor(Math.random() * 10)}/${Math.random().toString(36).substring(2, 8)}`;
-}
-
-export const saveBot = async (botData) => {
+// Funciones para exportar
+export const saveBot = async (botId, data) => {
   try {
-    const botId = generateBotId();
-    
-    await setDoc(doc(db, "bots", botId), {
-      url: botData.url,
-      duration: botData.duration,
-      repetitions: botData.repetitions,
-      createdAt: serverTimestamp()
-    });
-    
-    return botId;
+    await setDoc(doc(db, "bots", botId), data);
+    return true;
   } catch (error) {
-    console.error("Error al guardar bot:", error);
-    throw new Error("No se pudo guardar el bot. ¿Está Firestore configurado?");
+    console.error("Error saving bot:", error);
+    return false;
+  }
+};
+
+export const getBot = async (botId) => {
+  try {
+    const docSnap = await getDoc(doc(db, "bots", botId));
+    return docSnap.exists() ? docSnap.data() : null;
+  } catch (error) {
+    console.error("Error getting bot:", error);
+    return null;
+  }
+};
+
+export const deleteBot = async (botId) => {
+  try {
+    await deleteDoc(doc(db, "bots", botId));
+    return true;
+  } catch (error) {
+    console.error("Error deleting bot:", error);
+    return false;
+  }
+};
+
+export const listBots = async (userId) => {
+  try {
+    const q = query(collection(db, "bots"), where("userId", "==", userId));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error("Error listing bots:", error);
+    return [];
   }
 };

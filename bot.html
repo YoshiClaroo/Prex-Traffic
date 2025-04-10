@@ -130,7 +130,11 @@
   </div>
 
   <div class="bot-container">
-    <iframe id="bot-iframe" sandbox="allow-scripts allow-same-origin"></iframe>
+    <iframe 
+      id="bot-iframe" 
+      sandbox="allow-scripts allow-same-origin allow-forms"
+      allowfullscreen
+    ></iframe>
   </div>
 
   <div class="controls">
@@ -197,15 +201,78 @@
       }
 
       currentRepEl.textContent = currentRepetition;
-      iframe.src = botConfig.url;
+      loadUrlInIframe(botConfig.url);
 
-      // Esperar a que cargue el iframe
+      // Configurar eventos del iframe
       iframe.onload = () => {
         startTimer();
         startScrolling();
       };
+
+      iframe.onerror = () => {
+        showFallbackContent(botConfig.url);
+        startTimer();
+      };
     }
 
+    // ===== [FUNCIONES MEJORADAS] ===== //
+    function loadUrlInIframe(url) {
+      try {
+        // Intenta cargar la URL directamente
+        iframe.src = url;
+      } catch (error) {
+        console.error("Error al cargar URL:", error);
+        showFallbackContent(url);
+      }
+    }
+
+    function showFallbackContent(url) {
+      iframe.srcdoc = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { 
+              font-family: 'Poppins', sans-serif;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              height: 100vh;
+              margin: 0;
+              background: #1a1a2e;
+              color: #f8f9fa;
+              text-align: center;
+            }
+            .fallback-content {
+              padding: 2rem;
+              max-width: 90%;
+            }
+            .fallback-btn {
+              background: #2575fc;
+              color: white;
+              border: none;
+              padding: 0.8rem 1.5rem;
+              border-radius: 5px;
+              font-weight: bold;
+              cursor: pointer;
+              margin-top: 1rem;
+              display: inline-block;
+              text-decoration: none;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="fallback-content">
+            <h2>⚠️ No se puede mostrar esta página</h2>
+            <p>La página solicitada no permite ser incrustada por motivos de seguridad.</p>
+            <a href="${url}" target="_blank" class="fallback-btn">Abrir en nueva pestaña</a>
+          </div>
+        </body>
+        </html>
+      `;
+    }
+
+    // ===== [FUNCIONES EXISTENTES] ===== //
     function startTimer() {
       let timeLeft = botConfig.duration;
       timeLeftEl.textContent = timeLeft;
@@ -214,7 +281,6 @@
         timeLeft--;
         timeLeftEl.textContent = timeLeft;
 
-        // Actualizar barra de progreso
         const progress = 100 - ((timeLeft / botConfig.duration) * 100);
         progressBar.style.width = `${progress}%`;
 
@@ -227,32 +293,29 @@
 
     function startScrolling() {
       let scrollDirection = 1;
-      const scrollAmount = 50 * botConfig.speed;
+      const scrollAmount = 50 * (botConfig.speed === 'fast' ? 2 : botConfig.speed === 'slow' ? 0.5 : 1);
 
       scrollInterval = setInterval(() => {
         try {
-          iframe.contentWindow.scrollBy(0, scrollDirection * scrollAmount);
-          
-          const doc = iframe.contentDocument;
-          const currentScroll = iframe.contentWindow.scrollY;
-          const maxScroll = doc.body.scrollHeight - iframe.clientHeight;
+          if (iframe.contentWindow) {
+            iframe.contentWindow.scrollBy(0, scrollDirection * scrollAmount);
+            
+            const currentScroll = iframe.contentWindow.scrollY;
+            const maxScroll = iframe.contentDocument.body.scrollHeight - iframe.clientHeight;
 
-          if (currentScroll >= maxScroll || currentScroll <= 0) {
-            scrollDirection *= -1;
+            if (currentScroll >= maxScroll || currentScroll <= 0) {
+              scrollDirection *= -1;
+            }
           }
         } catch (error) {
-          console.error('Error en scroll:', error);
+          console.log('Scroll pausado:', error);
         }
-      }, 100 / botConfig.speed);
+      }, 100 / (botConfig.speed === 'fast' ? 2 : botConfig.speed === 'slow' ? 0.5 : 1));
     }
 
     function endCycle() {
       clearInterval(scrollInterval);
-      
-      // Esperar 1 segundo antes de recargar
-      setTimeout(() => {
-        startCycle();
-      }, 1000);
+      setTimeout(() => startCycle(), 1000);
     }
 
     function endBot() {

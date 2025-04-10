@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Bots Avanzado</title>
+    <style>
+        /* Estilos mejorados */
+        body { font-family: 'Poppins', sans-serif; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; }
+        button { background: #6E48AA; color: white; border: none; padding: 10px 15px; cursor: pointer; }
+        #bots-list { margin-top: 30px; }
+        .bot-item { background: white; padding: 15px; margin-bottom: 10px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Generador de Bots</h1>
+
+        <!-- Formulario Mejorado -->
+        <form id="bot-form">
+            <div class="form-group">
+                <label>URL de la página:</label>
+                <input type="url" id="target-url" placeholder="https://ejemplo.com" required>
+            </div>
+
+            <div class="form-group">
+                <label>Tiempo de interacción (segundos):</label>
+                <input type="number" id="duration" value="50" min="10" required>
+            </div>
+
+            <div class="form-group">
+                <label>Repeticiones de scroll:</label>
+                <select id="repetitions">
+                    <option value="1">1</option>
+                    <option value="3">3</option>
+                    <option value="5">5</option>
+                </select>
+            </div>
+
+            <button type="submit">Generar Bot</button>
+        </form>
+
+        <!-- Lista de Bots Generados -->
+        <div id="bots-list">
+            <h2>Tus Bots</h2>
+            <!-- Aquí se cargarán dinámicamente -->
+        </div>
+    </div>
+
+    <script src="firebase.js" type="module"></script>
+    <script type="module">
+        import { saveBot, listBots, deleteBot } from './firebase.js';
+
+        // Guardar bot
+        document.getElementById('bot-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const botId = Math.random().toString(36).substring(2, 10);
+            const botUrl = `${window.location.origin}/bot.html#${botId}`;
+
+            await saveBot(botId, {
+                url: document.getElementById('target-url').value,
+                duration: document.getElementById('duration').value,
+                repetitions: document.getElementById('repetitions').value,
+                userId: "user123" // Reemplazar con ID de usuario real
+            });
+
+            alert(`¡Bot generado! Enlace: ${botUrl}`);
+            loadBots(); // Actualizar lista
+        });
+
+        // Cargar y mostrar bots
+        async function loadBots() {
+            const bots = await listBots("user123"); // Usar ID de usuario real
+            const listContainer = document.getElementById('bots-list');
+
+            listContainer.innerHTML = '<h2>Tus Bots</h2>';
+            bots.forEach(bot => {
+                const botElement = document.createElement('div');
+                botElement.className = 'bot-item';
+                botElement.innerHTML = `
+                    <p><strong>URL:</strong> ${bot.targetUrl}</p>
+                    <p><strong>Duración:</strong> ${bot.duration} segundos</p>
+                    <p><strong>Repeticiones:</strong> ${bot.repetitions}</p>
+                    <button onclick="deleteBot('${bot.id}')">Eliminar</button>
+                `;
+                listContainer.appendChild(botElement);
+            });
+        }
+
+        // Eliminar bot
+        window.deleteBot = async (botId) => {
+            if (confirm('¿Eliminar este bot?')) {
+                await deleteBot(botId);
+                loadBots();
+            }
+        };
+
+        // Cargar bots al iniciar
+        loadBots();
+    </script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<script type="module">
+    import { getBot } from './firebase.js';
+
+    if (window.location.hash) {
+        const botId = window.location.hash.substring(1);
+        const botData = await getBot(botId);
+
+        if (botData) {
+            const iframe = document.getElementById('bot-iframe');
+            iframe.src = botData.targetUrl;
+
+            // Scroll adaptativo (basado en repeticiones)
+            let repetitions = 0;
+            const totalRepetitions = botData.repetitions;
+            const durationPerRepetition = (botData.duration * 1000) / totalRepetitions;
+
+            const scrollInterval = setInterval(() => {
+                if (repetitions >= totalRepetitions) {
+                    clearInterval(scrollInterval);
+                    return;
+                }
+
+                // Scroll hacia abajo y luego arriba
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                setTimeout(() => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    repetitions++;
+                }, durationPerRepetition / 2);
+            }, durationPerRepetition);
+        }
+    }
+</script>

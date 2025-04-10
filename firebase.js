@@ -3,12 +3,12 @@ import {
   getFirestore, 
   doc, 
   setDoc, 
-  getDoc, 
-  deleteDoc, 
+  getDoc,
+  deleteDoc,
   collection,
   query,
   where,
-  getDocs 
+  getDocs
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -21,47 +21,60 @@ const firebaseConfig = {
   measurementId: "G-0LDNZ5LRCE"
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Funciones para exportar
-export const saveBot = async (botId, data) => {
+// Función mejorada para guardar bots
+export const saveBot = async (botId, botData) => {
   try {
-    await setDoc(doc(db, "bots", botId), data);
+    console.log("Intentando guardar bot con ID:", botId);
+    console.log("Datos a guardar:", botData);
+    
+    await setDoc(doc(db, "bots", botId), {
+      targetUrl: botData.url,
+      duration: botData.duration,
+      repetitions: botData.repetitions,
+      speed: botData.speed,
+      userId: "default-user", // Cambiar cuando implementes autenticación
+      createdAt: new Date()
+    });
+    
+    console.log("Bot guardado exitosamente");
     return true;
   } catch (error) {
-    console.error("Error saving bot:", error);
+    console.error("Error al guardar bot:", error);
     return false;
   }
 };
 
+// Función mejorada para obtener bots
 export const getBot = async (botId) => {
   try {
-    const docSnap = await getDoc(doc(db, "bots", botId));
-    return docSnap.exists() ? docSnap.data() : null;
+    console.log("Buscando bot con ID:", botId);
+    const docRef = doc(db, "bots", botId);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      console.log("Bot encontrado:", docSnap.data());
+      return docSnap.data();
+    } else {
+      console.log("No existe el bot con ID:", botId);
+      return null;
+    }
   } catch (error) {
-    console.error("Error getting bot:", error);
+    console.error("Error al obtener bot:", error);
     return null;
   }
 };
 
-export const deleteBot = async (botId) => {
-  try {
-    await deleteDoc(doc(db, "bots", botId));
-    return true;
-  } catch (error) {
-    console.error("Error deleting bot:", error);
-    return false;
-  }
+// Funciones adicionales (listar y eliminar)
+export const listBots = async (userId) => {
+  const q = query(collection(db, "bots"), where("userId", "==", userId));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
-export const listBots = async (userId) => {
-  try {
-    const q = query(collection(db, "bots"), where("userId", "==", userId));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  } catch (error) {
-    console.error("Error listing bots:", error);
-    return [];
-  }
+export const deleteBot = async (botId) => {
+  await deleteDoc(doc(db, "bots", botId));
 };

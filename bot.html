@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bot PrexTraffic</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --primary: #6a11cb;
@@ -128,12 +129,12 @@
   <script type="module">
     import { getBot } from './firebase.js';
     
-    // Obtener el ID del bot de la URL
-    const pathParts = window.location.pathname.split('/').filter(p => p);
+    // Obtener el ID del bot de la URL (formato: prextraffic.netlify.app/7/h5b35b4a)
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
     const botId = pathParts.join('/');
     
-    if (!botId) {
-      showError('URL de bot inválida');
+    if (!botId || !botId.includes('/')) {
+      showError('URL de bot inválida. Debe ser formato: prextraffic.netlify.app/numero/codigo');
     } else {
       loadBot(botId);
     }
@@ -143,74 +144,84 @@
         const botData = await getBot(botId);
         
         if (!botData) {
-          showError('Bot no encontrado');
+          showError('Bot no encontrado. Puede que haya sido eliminado.');
           return;
         }
         
-        startBot(botData);
+        startBotInteraction(botData);
       } catch (error) {
-        console.error('Error:', error);
-        showError('Error al cargar el bot');
+        showError('Error al cargar el bot: ' + error.message);
+        console.error(error);
       }
     }
     
-    function startBot(config) {
-      document.getElementById('total-cycles').textContent = config.repetitions;
+    function startBotInteraction(config) {
+      const iframe = document.getElementById('bot-iframe');
+      const loadingElement = document.getElementById('loading');
+      const currentCycleEl = document.getElementById('current-cycle');
+      const totalCyclesEl = document.getElementById('total-cycles');
+      const timeLeftEl = document.getElementById('time-left');
+      const stopBtn = document.getElementById('stop-btn');
       
       let currentCycle = 0;
-      let timer;
+      let scrollInterval;
+      let cycleTimeout;
+      
+      totalCyclesEl.textContent = config.repetitions;
       
       function startCycle() {
         currentCycle++;
+        
         if (currentCycle > config.repetitions) {
-          endBot();
+          endInteraction();
           return;
         }
         
-        document.getElementById('current-cycle').textContent = currentCycle;
-        document.getElementById('loading').style.display = 'flex';
-        
-        // Reset iframe
-        const iframe = document.getElementById('bot-iframe');
+        currentCycleEl.textContent = currentCycle;
+        loadingElement.style.display = 'flex';
         iframe.src = 'about:blank';
         
+        // Pequeña pausa antes de cargar
         setTimeout(() => {
           iframe.src = config.url;
           
           iframe.onload = () => {
-            document.getElementById('loading').style.display = 'none';
+            loadingElement.style.display = 'none';
             startTimer();
             startScrolling();
           };
           
           iframe.onerror = () => {
-            document.getElementById('loading').textContent = 'Error al cargar la página';
-            setTimeout(() => startCycle(), 2000);
+            loadingElement.textContent = 'Error al cargar la página. Reintentando...';
+            setTimeout(startCycle, 2000);
           };
         }, 500);
       }
       
       function startTimer() {
-        let seconds = config.duration;
-        document.getElementById('time-left').textContent = seconds;
+        let secondsLeft = config.duration;
+        timeLeftEl.textContent = secondsLeft;
         
-        timer = setInterval(() => {
-          seconds--;
-          document.getElementById('time-left').textContent = seconds;
+        const timer = setInterval(() => {
+          secondsLeft--;
+          timeLeftEl.textContent = secondsLeft;
           
-          if (seconds <= 0) {
+          if (secondsLeft <= 0) {
             clearInterval(timer);
-            startCycle();
+            endCycle();
           }
         }, 1000);
+        
+        return timer;
       }
       
       function startScrolling() {
         let direction = 1;
-        const iframe = document.getElementById('bot-iframe');
-        const scrollInterval = setInterval(() => {
+        const scrollAmount = 50;
+        
+        scrollInterval = setInterval(() => {
           try {
-            iframe.contentWindow.scrollBy(0, 50 * direction);
+            iframe.contentWindow.scrollBy(0, direction * scrollAmount);
             
             const doc = iframe.contentDocument;
             const currentScroll = iframe.contentWindow.scrollY;
@@ -223,22 +234,24 @@
             console.error('Error en scroll:', error);
           }
         }, 100);
-        
-        // Limpiar al final del ciclo
-        setTimeout(() => clearInterval(scrollInterval), config.duration * 1000);
       }
       
-      function endBot() {
-        clearInterval(timer);
-        alert('Proceso completado');
+      function endCycle() {
+        clearInterval(scrollInterval);
+        startCycle();
       }
       
-      document.getElementById('stop-btn').onclick = () => {
-        if (confirm('¿Detener el bot ahora?')) {
-          clearInterval(timer);
-          alert('Bot detenido');
+      function endInteraction() {
+        clearInterval(scrollInterval);
+        clearTimeout(cycleTimeout);
+        alert('Interacción completada exitosamente');
+      }
+      
+      stopBtn.addEventListener('click', () => {
+        if (confirm('¿Detener la interacción ahora?')) {
+          endInteraction();
         }
-      };
+      });
       
       // Iniciar primer ciclo
       startCycle();
@@ -247,7 +260,8 @@
     function showError(message) {
       document.body.innerHTML = `
         <div class="error">
-          <h2>${message}</h2>
+          <h2>Error</h2>
+          <p>${message}</p>
           <p><a href="/">Volver al generador</a></p>
         </div>
       `;

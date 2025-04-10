@@ -3,12 +3,7 @@ import {
   getFirestore, 
   doc, 
   setDoc, 
-  getDoc,
-  deleteDoc,
-  collection,
-  query,
-  where,
-  getDocs
+  getDoc 
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -25,56 +20,33 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Función mejorada para guardar bots
+// Función para guardar un nuevo bot
 export const saveBot = async (botId, botData) => {
   try {
-    console.log("Intentando guardar bot con ID:", botId);
-    console.log("Datos a guardar:", botData);
-    
     await setDoc(doc(db, "bots", botId), {
-      targetUrl: botData.url,
+      url: botData.url,
       duration: botData.duration,
       repetitions: botData.repetitions,
       speed: botData.speed,
-      userId: "default-user", // Cambiar cuando implementes autenticación
-      createdAt: new Date()
+      createdAt: botData.createdAt
     });
-    
-    console.log("Bot guardado exitosamente");
     return true;
   } catch (error) {
-    console.error("Error al guardar bot:", error);
+    console.error("Error saving bot:", error);
     return false;
   }
 };
 
-// Función mejorada para obtener bots
+// Función para obtener configuración de un bot
 export const getBot = async (botId) => {
   try {
-    console.log("Buscando bot con ID:", botId);
-    const docRef = doc(db, "bots", botId);
-    const docSnap = await getDoc(docRef);
-
+    const docSnap = await getDoc(doc(db, "bots", botId));
     if (docSnap.exists()) {
-      console.log("Bot encontrado:", docSnap.data());
       return docSnap.data();
-    } else {
-      console.log("No existe el bot con ID:", botId);
-      return null;
     }
+    return null;
   } catch (error) {
-    console.error("Error al obtener bot:", error);
+    console.error("Error getting bot:", error);
     return null;
   }
-};
-
-// Funciones adicionales (listar y eliminar)
-export const listBots = async (userId) => {
-  const q = query(collection(db, "bots"), where("userId", "==", userId));
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-};
-
-export const deleteBot = async (botId) => {
-  await deleteDoc(doc(db, "bots", botId));
 };

@@ -23,12 +23,17 @@
       display: flex;
       flex-direction: column;
       min-height: 100vh;
+      overflow: hidden; /* Evita scroll no deseado */
     }
 
     .header {
-      padding: 1.5rem;
+      padding: 1rem;
       background: linear-gradient(to right, var(--primary), var(--secondary));
       text-align: center;
+      position: fixed;
+      width: 100%;
+      top: 0;
+      z-index: 100;
     }
 
     .stats-container {
@@ -36,6 +41,7 @@
       justify-content: space-around;
       padding: 1rem;
       background: rgba(0, 0, 0, 0.3);
+      margin-top: 60px; /* Ajuste por header fijo */
     }
 
     .stat {
@@ -64,18 +70,24 @@
     .bot-container {
       flex: 1;
       position: relative;
+      margin-top: 120px; /* Espacio para header y stats */
+      height: calc(100vh - 180px); /* Altura completa menos otros elementos */
     }
 
     iframe {
       width: 100%;
       height: 100%;
       border: none;
+      display: block;
     }
 
     .controls {
       padding: 1rem;
       text-align: center;
       background: rgba(0, 0, 0, 0.3);
+      position: fixed;
+      bottom: 0;
+      width: 100%;
     }
 
     .stop-btn {
@@ -89,19 +101,10 @@
       transition: all 0.3s;
     }
 
-    .stop-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-    }
-
     .error-container {
       padding: 2rem;
       text-align: center;
-    }
-
-    .error-container h2 {
-      color: var(--danger);
-      margin-bottom: 1rem;
+      margin-top: 60px;
     }
   </style>
 </head>
@@ -159,6 +162,7 @@
     let scrollInterval;
     let timerInterval;
     let isRunning = false;
+    let targetTime = 0;
 
     // Inicializar
     if (window.location.hash) {
@@ -203,27 +207,15 @@
       currentRepEl.textContent = currentRepetition;
       loadUrlInIframe(botConfig.url);
 
-      // Configurar eventos del iframe
-      iframe.onload = () => {
-        startTimer();
-        startScrolling();
-      };
-
-      iframe.onerror = () => {
-        showFallbackContent(botConfig.url);
-        startTimer();
-      };
+      // Configurar tiempo objetivo para evitar desincronización
+      targetTime = Date.now() + botConfig.duration * 1000;
+      startTimer();
+      startScrolling();
     }
 
-    // ===== [FUNCIONES MEJORADAS] ===== //
     function loadUrlInIframe(url) {
-      try {
-        // Intenta cargar la URL directamente
-        iframe.src = url;
-      } catch (error) {
-        console.error("Error al cargar URL:", error);
-        showFallbackContent(url);
-      }
+      iframe.onerror = () => showFallbackContent(url);
+      iframe.src = url;
     }
 
     function showFallbackContent(url) {
@@ -243,10 +235,6 @@
               color: #f8f9fa;
               text-align: center;
             }
-            .fallback-content {
-              padding: 2rem;
-              max-width: 90%;
-            }
             .fallback-btn {
               background: #2575fc;
               color: white;
@@ -262,9 +250,8 @@
           </style>
         </head>
         <body>
-          <div class="fallback-content">
+          <div>
             <h2>⚠️ No se puede mostrar esta página</h2>
-            <p>La página solicitada no permite ser incrustada por motivos de seguridad.</p>
             <a href="${url}" target="_blank" class="fallback-btn">Abrir en nueva pestaña</a>
           </div>
         </body>
@@ -272,50 +259,56 @@
       `;
     }
 
-    // ===== [FUNCIONES EXISTENTES] ===== //
     function startTimer() {
-      let timeLeft = botConfig.duration;
-      timeLeftEl.textContent = timeLeft;
+      clearInterval(timerInterval);
+      updateTimer(); // Actualización inmediata
 
-      timerInterval = setInterval(() => {
-        timeLeft--;
-        timeLeftEl.textContent = timeLeft;
+      timerInterval = setInterval(updateTimer, 200); // Actualización suave
+    }
 
-        const progress = 100 - ((timeLeft / botConfig.duration) * 100);
-        progressBar.style.width = `${progress}%`;
+    function updateTimer() {
+      const now = Date.now();
+      const remaining = Math.max(0, Math.ceil((targetTime - now) / 1000));
+      
+      timeLeftEl.textContent = remaining;
+      const progress = 100 - (remaining / botConfig.duration * 100);
+      progressBar.style.width = `${progress}%`;
 
-        if (timeLeft <= 0) {
-          clearInterval(timerInterval);
-          endCycle();
-        }
-      }, 1000);
+      if (remaining <= 0) {
+        clearInterval(timerInterval);
+        endCycle();
+      }
     }
 
     function startScrolling() {
+      clearInterval(scrollInterval);
       let scrollDirection = 1;
-      const scrollAmount = 50 * (botConfig.speed === 'fast' ? 2 : botConfig.speed === 'slow' ? 0.5 : 1);
+      const speed = botConfig.speed === 'fast' ? 2 : botConfig.speed === 'slow' ? 0.5 : 1;
 
       scrollInterval = setInterval(() => {
         try {
           if (iframe.contentWindow) {
-            iframe.contentWindow.scrollBy(0, scrollDirection * scrollAmount);
-            
-            const currentScroll = iframe.contentWindow.scrollY;
+            const scrollY = iframe.contentWindow.scrollY;
             const maxScroll = iframe.contentDocument.body.scrollHeight - iframe.clientHeight;
-
-            if (currentScroll >= maxScroll || currentScroll <= 0) {
+            
+            if (scrollY >= maxScroll || scrollY <= 0) {
               scrollDirection *= -1;
             }
+            
+            iframe.contentWindow.scrollBy({
+              top: 50 * scrollDirection * speed,
+              behavior: 'smooth'
+            });
           }
         } catch (error) {
-          console.log('Scroll pausado:', error);
+          console.log('Scroll no disponible:', error);
         }
-      }, 100 / (botConfig.speed === 'fast' ? 2 : botConfig.speed === 'slow' ? 0.5 : 1));
+      }, 100);
     }
 
     function endCycle() {
       clearInterval(scrollInterval);
-      setTimeout(() => startCycle(), 1000);
+      setTimeout(startCycle, 1000);
     }
 
     function endBot() {
@@ -334,11 +327,7 @@
       `;
     }
 
-    stopBtn.addEventListener('click', () => {
-      if (confirm('¿Detener el bot ahora?')) {
-        endBot();
-      }
-    });
+    stopBtn.addEventListener('click', endBot);
   </script>
 </body>
 </html>

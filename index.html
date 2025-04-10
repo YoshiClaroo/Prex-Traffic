@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PrexTraffic | Generador de Bots</title>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --primary: #6a11cb;
@@ -13,7 +13,6 @@
       --dark: #1a1a2e;
       --light: #f8f9fa;
       --success: #00b894;
-      --warning: #fdcb6e;
       --danger: #d63031;
     }
 
@@ -24,7 +23,7 @@
     }
 
     body {
-      font-family: 'Montserrat', sans-serif;
+      font-family: 'Poppins', sans-serif;
       background: linear-gradient(135deg, var(--dark), var(--primary));
       color: var(--light);
       min-height: 100vh;
@@ -32,7 +31,7 @@
     }
 
     .container {
-      max-width: 1200px;
+      max-width: 800px;
       margin: 0 auto;
       background: rgba(255, 255, 255, 0.1);
       backdrop-filter: blur(10px);
@@ -50,13 +49,6 @@
       text-align: center;
     }
 
-    .form-container {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 2rem;
-      margin-bottom: 2rem;
-    }
-
     .form-group {
       margin-bottom: 1.5rem;
     }
@@ -65,7 +57,6 @@
       display: block;
       margin-bottom: 0.5rem;
       font-weight: 600;
-      color: var(--light);
     }
 
     input, select {
@@ -76,13 +67,6 @@
       background: rgba(255, 255, 255, 0.2);
       color: var(--light);
       font-size: 1rem;
-      transition: all 0.3s;
-    }
-
-    input:focus, select:focus {
-      outline: none;
-      background: rgba(255, 255, 255, 0.3);
-      box-shadow: 0 0 0 2px var(--accent);
     }
 
     button {
@@ -95,8 +79,7 @@
       font-weight: 600;
       cursor: pointer;
       transition: all 0.3s;
-      text-transform: uppercase;
-      letter-spacing: 1px;
+      width: 100%;
     }
 
     button:hover {
@@ -112,46 +95,22 @@
       display: none;
     }
 
-    .bot-list {
-      margin-top: 3rem;
-    }
-
-    .bot-item {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-      padding: 1.5rem;
-      margin-bottom: 1rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      transition: all 0.3s;
-    }
-
-    .bot-item:hover {
-      background: rgba(255, 255, 255, 0.2);
-    }
-
-    .bot-info {
-      flex: 1;
-    }
-
-    .bot-actions button {
-      padding: 0.5rem 1rem;
-      margin-left: 0.5rem;
+    #generated-url {
+      word-break: break-all;
+      margin: 1rem 0;
+      padding: 1rem;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 5px;
     }
 
     .copy-btn {
       background: var(--success);
+      margin-top: 1rem;
     }
 
-    .delete-btn {
-      background: var(--danger);
-    }
-
-    @media (max-width: 768px) {
-      .form-container {
-        grid-template-columns: 1fr;
-      }
+    .error {
+      color: var(--danger);
+      margin-top: 1rem;
     }
   </style>
 </head>
@@ -160,30 +119,28 @@
     <h1>Generador de Bots PrexTraffic</h1>
     
     <form id="bot-form">
-      <div class="form-container">
-        <div class="form-group">
-          <label for="target-url">URL de la página:</label>
-          <input type="url" id="target-url" placeholder="https://ejemplo.com" required>
-        </div>
-        
-        <div class="form-group">
-          <label for="duration">Duración (segundos):</label>
-          <input type="number" id="duration" min="10" max="600" value="60" required>
-        </div>
-        
-        <div class="form-group">
-          <label for="repetitions">Repeticiones:</label>
-          <input type="number" id="repetitions" min="50" max="1000" value="100" required>
-        </div>
-        
-        <div class="form-group">
-          <label for="speed">Velocidad:</label>
-          <select id="speed">
-            <option value="slow">Lenta</option>
-            <option value="medium" selected>Media</option>
-            <option value="fast">Rápida</option>
-          </select>
-        </div>
+      <div class="form-group">
+        <label for="target-url">URL de la página:</label>
+        <input type="url" id="target-url" placeholder="https://ejemplo.com" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="duration">Duración por ciclo (segundos):</label>
+        <input type="number" id="duration" min="10" max="600" value="50" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="repetitions">Número de repeticiones:</label>
+        <input type="number" id="repetitions" min="1" max="1000" value="3" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="speed">Velocidad:</label>
+        <select id="speed">
+          <option value="0.5">Lenta</option>
+          <option value="1" selected>Normal</option>
+          <option value="2">Rápida</option>
+        </select>
       </div>
       
       <button type="submit">Generar Bot</button>
@@ -191,121 +148,71 @@
     
     <div id="result-container" class="result-container">
       <h3>¡Bot generado con éxito!</h3>
-      <p id="generated-url"></p>
+      <div id="generated-url"></div>
       <button id="copy-btn" class="copy-btn">Copiar Enlace</button>
-    </div>
-    
-    <div class="bot-list">
-      <h2>Tus Bots Generados</h2>
-      <div id="bots-list"></div>
+      <div id="error-message" class="error"></div>
     </div>
   </div>
 
   <script src="firebase.js" type="module"></script>
   <script type="module">
-    import { saveBot, listBots, deleteBot } from './firebase.js';
+    import { saveBot } from './firebase.js';
     
-    // Función para generar IDs únicos
-    function generateBotId() {
-      return Math.random().toString(36).substring(2, 10) + 
-             Math.random().toString(36).substring(2, 10);
-    }
-    
-    // Manejar el formulario
     document.getElementById('bot-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const resultContainer = document.getElementById('result-container');
+      const errorMessage = document.getElementById('error-message');
       
+      // Obtener valores del formulario
       const targetUrl = document.getElementById('target-url').value;
-      const duration = parseInt(document.getElementById('duration').value);
-      const repetitions = parseInt(document.getElementById('repetitions').value);
+      const duration = document.getElementById('duration').value;
+      const repetitions = document.getElementById('repetitions').value;
       const speed = document.getElementById('speed').value;
       
-      if (!targetUrl) {
-        alert('Por favor ingresa una URL válida');
-        return;
-      }
-      
       try {
-        const botId = generateBotId();
-        const botUrl = `${window.location.origin}/bot.html#${botId}`;
+        // Validar URL
+        if (!targetUrl.startsWith('http')) {
+          throw new Error('La URL debe comenzar con http:// o https://');
+        }
         
-        await saveBot(botId, {
+        // Generar ID único
+        const botId = Math.random().toString(36).substring(2, 15) + 
+                      Math.random().toString(36).substring(2, 15);
+        
+        // Guardar en Firebase
+        const saveResult = await saveBot(botId, {
           url: targetUrl,
-          duration: duration,
-          repetitions: repetitions,
-          speed: speed,
-          userId: "user123", // Cambiar por sistema de autenticación real
+          duration: parseInt(duration),
+          repetitions: parseInt(repetitions),
+          speed: parseFloat(speed),
           createdAt: new Date()
         });
         
+        if (!saveResult) {
+          throw new Error('Error al guardar en la base de datos');
+        }
+        
         // Mostrar resultado
+        const botUrl = `${window.location.origin}/bot.html#${botId}`;
         document.getElementById('generated-url').textContent = botUrl;
-        document.getElementById('result-container').style.display = 'block';
+        resultContainer.style.display = 'block';
+        errorMessage.textContent = '';
         
         // Configurar botón de copiar
         document.getElementById('copy-btn').onclick = () => {
           navigator.clipboard.writeText(botUrl)
-            .then(() => alert('¡Enlace copiado al portapapeles!'))
-            .catch(err => console.error('Error al copiar:', err));
+            .then(() => alert('Enlace copiado al portapapeles'))
+            .catch(err => {
+              errorMessage.textContent = 'Error al copiar: ' + err.message;
+            });
         };
         
-        // Actualizar lista
-        loadBots();
       } catch (error) {
+        errorMessage.textContent = error.message;
+        resultContainer.style.display = 'block';
         console.error('Error:', error);
-        alert('Ocurrió un error al generar el bot');
       }
     });
-    
-    // Función para cargar bots
-    async function loadBots() {
-      try {
-        const bots = await listBots("user123"); // Cambiar por ID de usuario real
-        const botsList = document.getElementById('bots-list');
-        botsList.innerHTML = '';
-        
-        if (bots.length === 0) {
-          botsList.innerHTML = '<p>No has generado ningún bot todavía.</p>';
-          return;
-        }
-        
-        bots.forEach(bot => {
-          const botItem = document.createElement('div');
-          botItem.className = 'bot-item';
-          botItem.innerHTML = `
-            <div class="bot-info">
-              <p><strong>URL:</strong> ${bot.url}</p>
-              <p><strong>Duración:</strong> ${bot.duration} segundos</p>
-              <p><strong>Repeticiones:</strong> ${bot.repetitions}</p>
-              <p><strong>Velocidad:</strong> ${bot.speed}</p>
-            </div>
-            <div class="bot-actions">
-              <a href="/bot.html#${bot.id}" target="_blank" class="copy-btn">Ver</a>
-              <button onclick="deleteBot('${bot.id}')" class="delete-btn">Eliminar</button>
-            </div>
-          `;
-          botsList.appendChild(botItem);
-        });
-      } catch (error) {
-        console.error('Error cargando bots:', error);
-      }
-    }
-    
-    // Función para eliminar bots
-    window.deleteBot = async (botId) => {
-      if (confirm('¿Estás seguro de que quieres eliminar este bot?')) {
-        try {
-          await deleteBot(botId);
-          loadBots();
-        } catch (error) {
-          console.error('Error eliminando bot:', error);
-          alert('No se pudo eliminar el bot');
-        }
-      }
-    };
-    
-    // Cargar bots al iniciar
-    loadBots();
   </script>
 </body>
 </html>

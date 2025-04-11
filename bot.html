@@ -184,20 +184,20 @@
     }
 
     async function loadPage(url) {
-      try {
+    try {
         const response = await fetch(`http://localhost:3000/render?url=${encodeURIComponent(url)}`);
         const html = await response.text();
         viewport.innerHTML = html;
-      } catch (error) {
+    } catch (error) {
         viewport.innerHTML = `
-          <div style="padding: 2rem; text-align: center; color: white;">
-            <h2>⚠️ Error al cargar la página</h2>
-            <p>URL: ${url}</p>
-            <a href="${url}" target="_blank" style="color: #2575fc;">Abrir en nueva pestaña</a>
-          </div>
+            <div style="padding: 20px; color: white; text-align: center;">
+                <h2>⚠️ No se pudo cargar la página</h2>
+                <p>${error.message}</p>
+                <a href="${url}" target="_blank" style="color: #2575fc;">Abrir en nueva pestaña</a>
+            </div>
         `;
-      }
     }
+}
 
     function startTimer() {
       targetTime = Date.now() + botConfig.duration * 1000;

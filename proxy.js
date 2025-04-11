@@ -1,19 +1,51 @@
 const express = require('express');
 const { chromium } = require('playwright');
+
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
-app.get('/render', async (req, res) => {
-    const url = req.query.url;
-    const browser = await chromium.launch();
-    const page = await browser.newPage();
-
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-    await page.goto(url, { waitUntil: 'networkidle' });
-
-    const html = await page.content();
-    await browser.close();
-    res.send(html);
+// Configura CORS
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', '*');
+  next();
 });
 
-app.listen(PORT, () => console.log(`Proxy corriendo en http://localhost:${PORT}`));
+// Ruta principal
+app.get('/render', async (req, res) => {
+  const url = req.query.url;
+  
+  if (!url) {
+    return res.status(400).send('Falta el parámetro URL');
+  }
+
+  let browser;
+  try {
+    // Configuración especial para Render
+    browser = await chromium.launch({
+      executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || null,
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+
+    const page = await browser.newPage();
+    await page.goto(url, { 
+      waitUntil: 'networkidle2',
+      timeout: 60000
+    });
+
+    const html = await page.content();
+    res.send(html);
+
+  } catch (error) {
+    console.error('Error en el proxy:', error);
+    res.status(500).send(`Error al cargar la página: ${error.message}`);
+  } finally {
+    if (browser) await browser.close();
+  }
+});
+
+// Inicia el servidor
+app.listen(PORT, () => {
+  console.log(`Proxy activo en http://localhost:${PORT}`);
+});

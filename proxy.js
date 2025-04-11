@@ -21,9 +21,8 @@ app.get('/render', async (req, res) => {
 
   let browser;
   try {
-    // Configuración especial para Render
     browser = await chromium.launch({
-      executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || null,
+      executablePath: '/opt/render/.cache/ms-playwright/chromium-*/chrome-linux/chrome',
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bot PrexTraffic | Navegación Real</title>
+  <title>Bot Interactivo | PrexTraffic</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -12,6 +12,7 @@
       --dark: #1a1a2e;
       --light: #f8f9fa;
       --danger: #d63031;
+      --success: #00b894;
     }
 
     body {
@@ -22,7 +23,7 @@
       color: var(--light);
       display: flex;
       flex-direction: column;
-      min-height: 100vh;
+      height: 100vh;
     }
 
     .header {
@@ -35,90 +36,72 @@
       z-index: 100;
     }
 
-    .stats-container {
-      display: flex;
-      justify-content: space-around;
-      padding: 1rem;
-      background: rgba(0, 0, 0, 0.3);
-      margin-top: 60px;
-    }
-
-    .stat-value {
-      font-size: 1.5rem;
-      font-weight: bold;
-      color: var(--secondary);
-    }
-
-    .progress-container {
-      width: 100%;
-      height: 10px;
-      background: rgba(255, 255, 255, 0.1);
-    }
-
-    .progress-bar {
-      height: 100%;
-      background: linear-gradient(to right, var(--primary), var(--secondary));
-      width: 0%;
-      transition: width 0.5s;
-    }
-
-    #viewport {
-      width: 100%;
-      height: calc(100vh - 180px);
-      margin-top: 120px;
-      border: none;
-      overflow: auto;
-    }
-
     .controls {
+      display: flex;
+      gap: 10px;
       padding: 1rem;
-      text-align: center;
       background: rgba(0, 0, 0, 0.3);
       position: fixed;
       bottom: 0;
       width: 100%;
+      justify-content: center;
     }
 
-    .stop-btn {
-      background: var(--danger);
+    button {
+      background: var(--secondary);
       color: white;
       border: none;
-      padding: 0.8rem 1.5rem;
+      padding: 0.6rem 1.2rem;
       border-radius: 5px;
       font-weight: bold;
       cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    button:hover {
+      opacity: 0.9;
+      transform: translateY(-2px);
+    }
+
+    #stop-btn {
+      background: var(--danger);
+    }
+
+    #viewport {
+      width: 100%;
+      height: calc(100vh - 120px);
+      margin-top: 60px;
+      border: none;
+      overflow: auto;
+    }
+
+    .stats {
+      position: fixed;
+      top: 70px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 14px;
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>Bot PrexTraffic | Navegación Avanzada</h1>
+    <h1>Bot Interactivo PrexTraffic</h1>
   </div>
 
-  <div class="stats-container">
-    <div class="stat">
-      <div class="stat-value" id="current-repetition">0</div>
-      <div>Repetición</div>
-    </div>
-    <div class="stat">
-      <div class="stat-value" id="total-repetitions">0</div>
-      <div>Total</div>
-    </div>
-    <div class="stat">
-      <div class="stat-value" id="time-left">0</div>
-      <div>Segundos</div>
-    </div>
+  <div class="stats">
+    <div>Repetición: <span id="current-repetition">0</span></div>
+    <div>Tiempo: <span id="time-left">0</span>s</div>
   </div>
 
-  <div class="progress-container">
-    <div class="progress-bar" id="progress-bar"></div>
-  </div>
-
-  <!-- Contenedor del renderizado (reemplaza al iframe) -->
   <div id="viewport"></div>
 
   <div class="controls">
-    <button class="stop-btn" id="stop-btn">Detener Bot</button>
+    <button id="click-btn">Simular Clic</button>
+    <button id="scroll-btn">Scroll Automático</button>
+    <button id="stop-btn">Detener Bot</button>
   </div>
 
   <script src="firebase.js" type="module"></script>
@@ -128,9 +111,9 @@
     // Elementos del DOM
     const viewport = document.getElementById('viewport');
     const currentRepEl = document.getElementById('current-repetition');
-    const totalRepsEl = document.getElementById('total-repetitions');
     const timeLeftEl = document.getElementById('time-left');
-    const progressBar = document.getElementById('progress-bar');
+    const clickBtn = document.getElementById('click-btn');
+    const scrollBtn = document.getElementById('scroll-btn');
     const stopBtn = document.getElementById('stop-btn');
 
     // Variables de estado
@@ -138,6 +121,8 @@
     let currentRepetition = 0;
     let isRunning = false;
     let targetTime = 0;
+    let scrollInterval;
+    let clickInterval;
 
     // Inicializar
     if (window.location.hash) {
@@ -155,7 +140,6 @@
           return;
         }
         botConfig = config;
-        totalRepsEl.textContent = botConfig.repetitions;
         startBot();
       } catch (error) {
         showError('Error al cargar el bot');
@@ -172,32 +156,46 @@
 
     async function startCycle() {
       currentRepetition++;
-      if (currentRepetition > botConfig.repetitions) {
-        endBot();
-        return;
-      }
-
       currentRepEl.textContent = currentRepetition;
-      await loadPage(botConfig.url); // Renderizar página
+      
+      await loadPage(botConfig.url);
       startTimer();
-      startAutoInteractions(); // Scroll/clicks automáticos
     }
 
     async function loadPage(url) {
-    try {
+      try {
         const response = await fetch(`http://localhost:3000/render?url=${encodeURIComponent(url)}`);
         const html = await response.text();
-        viewport.innerHTML = html;
-    } catch (error) {
+        
+        // Limpia eventos anteriores
+        viewport.innerHTML = '';
+        
+        // Crea un iframe oculto para interactuar
+        const iframe = document.createElement('iframe');
+        iframe.srcdoc = html;
+        iframe.style.display = 'none';
+        viewport.appendChild(iframe);
+        
+        // Espera a que cargue
+        await new Promise(resolve => {
+          iframe.onload = resolve;
+        });
+
+        // Clona el contenido al viewport principal
+        const clonedContent = iframe.contentDocument.documentElement.cloneNode(true);
+        viewport.innerHTML = '';
+        viewport.appendChild(clonedContent);
+
+      } catch (error) {
         viewport.innerHTML = `
-            <div style="padding: 20px; color: white; text-align: center;">
-                <h2>⚠️ No se pudo cargar la página</h2>
-                <p>${error.message}</p>
-                <a href="${url}" target="_blank" style="color: #2575fc;">Abrir en nueva pestaña</a>
-            </div>
+          <div style="padding: 2rem; text-align: center; color: white;">
+            <h2>⚠️ Error al cargar la página</h2>
+            <p>${error.message}</p>
+            <a href="${url}" target="_blank" style="color: var(--secondary);">Abrir en nueva pestaña</a>
+          </div>
         `;
+      }
     }
-}
 
     function startTimer() {
       targetTime = Date.now() + botConfig.duration * 1000;
@@ -207,7 +205,6 @@
       function updateTimer() {
         const remaining = Math.max(0, Math.ceil((targetTime - Date.now()) / 1000));
         timeLeftEl.textContent = remaining;
-        progressBar.style.width = `${100 - (remaining / botConfig.duration * 100)}%`;
 
         if (remaining <= 0) {
           clearInterval(timer);
@@ -216,26 +213,52 @@
       }
     }
 
-    function startAutoInteractions() {
+    // ===== INTERACCIÓN AVANZADA ===== //
+    clickBtn.addEventListener('click', () => {
+      // Simula clics aleatorios
+      clickInterval = setInterval(() => {
+        const elements = viewport.querySelectorAll('a, button, [onclick]');
+        if (elements.length > 0) {
+          const randomElement = elements[Math.floor(Math.random() * elements.length)];
+          randomElement.click();
+          highlightElement(randomElement);
+        }
+      }, 2000);
+    });
+
+    scrollBtn.addEventListener('click', () => {
       // Scroll automático suave
-      const scrollInterval = setInterval(() => {
+      scrollInterval = setInterval(() => {
         viewport.scrollBy({
-          top: 50,
+          top: 300,
           behavior: 'smooth'
         });
-      }, 1000);
+      }, 3000);
+    });
 
-      // Detener al finalizar el ciclo
-      setTimeout(() => clearInterval(scrollInterval), botConfig.duration * 1000);
+    function highlightElement(element) {
+      const originalBorder = element.style.border;
+      element.style.border = '2px solid red';
+      setTimeout(() => {
+        element.style.border = originalBorder;
+      }, 1000);
+    }
+
+    function endCycle() {
+      clearInterval(scrollInterval);
+      clearInterval(clickInterval);
+      setTimeout(startCycle, 1000);
     }
 
     function endBot() {
       isRunning = false;
-      alert('Proceso completado');
+      clearInterval(scrollInterval);
+      clearInterval(clickInterval);
+      alert('Bot detenido');
     }
 
     function showError(message) {
-      document.body.innerHTML = `
+      viewport.innerHTML = `
         <div style="padding: 2rem; text-align: center;">
           <h2 style="color: var(--danger);">${message}</h2>
           <a href="/" style="color: var(--secondary);">Volver al generador</a>

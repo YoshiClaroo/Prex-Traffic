@@ -3,18 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bot Interactivo</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <title>Visor Web</title>
   <style>
     :root {
       --primary: #4285f4;
-      --danger: #ea4335;
       --dark: #2d3748;
       --light: #f8f9fa;
     }
     
     body {
-      font-family: 'Poppins', sans-serif;
+      font-family: 'Segoe UI', sans-serif;
       margin: 0;
       padding: 0;
       background: var(--dark);
@@ -26,7 +24,7 @@
     
     .control-panel {
       background: rgba(0, 0, 0, 0.7);
-      padding: 12px 20px;
+      padding: 10px 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -39,7 +37,7 @@
     
     .counter {
       display: flex;
-      gap: 25px;
+      gap: 20px;
     }
     
     .counter-item {
@@ -47,19 +45,29 @@
     }
     
     .counter-value {
-      font-size: 1.3rem;
+      font-size: 1.2rem;
       font-weight: bold;
       color: var(--primary);
     }
     
-    .counter-label {
-      font-size: 0.85rem;
-      opacity: 0.8;
+    .progress-container {
+      height: 4px;
+      background: rgba(255,255,255,0.1);
+      width: 100%;
+      position: fixed;
+      top: 60px;
+    }
+    
+    .progress-bar {
+      height: 100%;
+      background: var(--primary);
+      width: 0%;
+      transition: width 0.3s;
     }
     
     #webview {
       flex: 1;
-      margin-top: 70px;
+      margin-top: 64px;
       border: none;
       background: white;
     }
@@ -67,18 +75,7 @@
     .error-message {
       padding: 20px;
       text-align: center;
-      color: var(--danger);
-      margin-top: 70px;
-    }
-    
-    #stop-btn {
-      background: var(--danger);
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 4px;
-      font-weight: bold;
-      cursor: pointer;
+      color: #f44336;
     }
   </style>
 </head>
@@ -87,21 +84,24 @@
     <div class="counter">
       <div class="counter-item">
         <div class="counter-value" id="current-repetition">0</div>
-        <div class="counter-label">Repetición</div>
+        <div>Repetición</div>
       </div>
       <div class="counter-item">
         <div class="counter-value" id="total-repetitions">0</div>
-        <div class="counter-label">Total</div>
+        <div>Total</div>
       </div>
       <div class="counter-item">
-        <div class="counter-value" id="time-left">40</div>
-        <div class="counter-label">Segundos</div>
+        <div class="counter-value" id="time-left">0</div>
+        <div>Segundos</div>
       </div>
     </div>
-    <button id="stop-btn">Detener</button>
   </div>
   
-  <div id="webview"></div>
+  <div class="progress-container">
+    <div class="progress-bar" id="progress-bar"></div>
+  </div>
+  
+  <iframe id="webview"></iframe>
 
   <script src="firebase.js" type="module"></script>
   <script type="module">
@@ -112,96 +112,93 @@
     const currentRepEl = document.getElementById('current-repetition');
     const totalRepsEl = document.getElementById('total-repetitions');
     const timeLeftEl = document.getElementById('time-left');
-    const stopBtn = document.getElementById('stop-btn');
+    const progressBar = document.getElementById('progress-bar');
 
     // Variables de estado
     let botConfig = null;
     let currentRepetition = 0;
-    let isRunning = false;
-    let interactionInterval;
+    let targetTime = 0;
     let timerInterval;
+    let interactionInterval;
 
     // Inicialización
     if (window.location.hash) {
       const botId = window.location.hash.substring(1);
       loadBotConfig(botId);
     } else {
-      showError('No se especificó un bot');
+      showError('No se especificó una URL');
     }
 
     async function loadBotConfig(botId) {
       try {
         const config = await getBot(botId);
         if (!config) {
-          showError('Bot no encontrado');
+          showError('Configuración no encontrada');
           return;
         }
         botConfig = config;
         totalRepsEl.textContent = botConfig.repetitions;
-        startBot();
+        startCycle();
       } catch (error) {
         showError('Error al cargar la configuración');
       }
     }
 
-    function startBot() {
-      if (!botConfig || isRunning) return;
-      isRunning = true;
-      currentRepetition = 0;
-      startCycle();
-    }
-
     function startCycle() {
-      if (!isRunning) return;
-      
       currentRepetition++;
       if (currentRepetition > botConfig.repetitions) {
-        endBot();
         return;
       }
 
       currentRepEl.textContent = currentRepetition;
       loadPage(botConfig.url);
+      startTimer();
     }
 
     async function loadPage(url) {
       try {
-        // Resetear temporizador
-        timeLeftEl.textContent = '40';
+        // Intenta cargar directamente
+        webview.src = url;
         
-        // Cargar página via proxy
-        const response = await fetch(`https://prextraffic.netlify.app/bot.html#ug6ma9bfnnq31uf0=${encodeURIComponent(url)}`);
-        const html = await response.text();
-        
-        // Renderizar en el contenedor
-        webview.innerHTML = html;
-        
-        // Iniciar interacciones
-        startInteractions();
-        
-        // Iniciar temporizador
-        startTimer();
+        // Si falla, usa el proxy
+        webview.onerror = async () => {
+          try {
+            const response = await fetch(`https://prex-traffic.onrender.com/render?url=${encodeURIComponent(url)}`);
+            const html = await response.text();
+            webview.srcdoc = html;
+          } catch (error) {
+            showError(`No se pudo cargar: ${url}`);
+          }
+        };
+
+        // Iniciar interacciones cuando el iframe cargue
+        webview.addEventListener('load', () => {
+          startInteractions();
+        });
 
       } catch (error) {
-        showError(`Error al cargar: ${error.message}`);
+        showError(`Error: ${error.message}`);
       }
     }
 
+    // ===== [NUEVO: INTERACCIONES AUTOMÁTICAS] ===== //
     function startInteractions() {
-      // Limpiar interacciones previas
+      // Limpiar intervalo previo
       clearInterval(interactionInterval);
-      
+
       // Ejecutar cada 3 segundos
       interactionInterval = setInterval(() => {
         try {
+          const iframeDoc = webview.contentDocument || webview.contentWindow.document;
+          
           // 1. Cerrar popups
-          closePopups();
+          closePopups(iframeDoc);
           
           // 2. Scroll automático
-          autoScroll();
+          autoScroll(iframeDoc);
           
-          // 3. Clicks aleatorios
-          randomClick();
+          // 3. Click aleatorio
+          randomClick(iframeDoc);
           
         } catch (error) {
           console.log("Error en interacción:", error);
@@ -209,91 +206,80 @@
       }, 3000);
     }
 
-    function closePopups() {
-      const closeSelectors = [
-        'button[aria-label="Close"]',
-        '.close, .close-btn, .modal-close',
-        '[data-dismiss="modal"]',
-        'button:contains("Cerrar"), button:contains("Aceptar")'
-      ];
-      
-      closeSelectors.forEach(selector => {
-        const elements = webview.querySelectorAll(selector);
-        elements.forEach(el => el.click());
+    function closePopups(doc) {
+      const closeButtons = doc.querySelectorAll(
+        'button[aria-label="Close"], .close, .close-btn, .modal-close, [data-dismiss="modal"]'
+      );
+      closeButtons.forEach(btn => {
+        if (btn.offsetParent !== null) btn.click(); // Solo elementos visibles
       });
     }
 
-    function autoScroll() {
-      const scrollHeight = document.body.scrollHeight;
-      const currentPos = window.scrollY || webview.scrollTop;
-      const windowHeight = window.innerHeight;
+    function autoScroll(doc) {
+      const scrollHeight = doc.body.scrollHeight;
+      const currentPos = webview.contentWindow.scrollY;
+      const windowHeight = webview.clientHeight;
       
       if (currentPos <= 0) {
-        // Scroll hacia abajo
-        webview.scrollTo({
+        webview.contentWindow.scrollTo({
           top: scrollHeight,
           behavior: 'smooth'
         });
       } else if (currentPos + windowHeight >= scrollHeight - 100) {
-        // Scroll hacia arriba
-        webview.scrollTo({
+        webview.contentWindow.scrollTo({
           top: 0,
           behavior: 'smooth'
         });
       } else {
-        // Scroll aleatorio
-        webview.scrollBy({
+        webview.contentWindow.scrollBy({
           top: Math.random() > 0.5 ? 300 : -300,
           behavior: 'smooth'
         });
       }
     }
 
-    function randomClick() {
+    function randomClick(doc) {
       const clickableElements = [
-        ...webview.querySelectorAll('a'),
-        ...webview.querySelectorAll('button'),
-        ...webview.querySelectorAll('[onclick]')
+        ...doc.querySelectorAll('a'),
+        ...doc.querySelectorAll('button'),
+        ...doc.querySelectorAll('[onclick]')
       ].filter(el => el.offsetParent !== null); // Solo elementos visibles
       
       if (clickableElements.length > 0) {
-        const randomIndex = Math.floor(Math.random() * clickableElements.length);
-        clickableElements[randomIndex].click();
+        const randomElement = clickableElements[Math.floor(Math.random() * clickableElements.length)];
+        randomElement.click();
       }
     }
+    // ===== [FIN DE INTERACCIONES] ===== //
 
     function startTimer() {
       clearInterval(timerInterval);
-      let secondsLeft = 40;
-      
-      timerInterval = setInterval(() => {
-        secondsLeft--;
-        timeLeftEl.textContent = secondsLeft;
-        
-        if (secondsLeft <= 0) {
-          clearInterval(timerInterval);
-          setTimeout(startCycle, 1000); // Siguiente ciclo
-        }
-      }, 1000);
+      targetTime = Date.now() + botConfig.duration * 1000;
+      updateTimer();
+      timerInterval = setInterval(updateTimer, 200);
     }
 
-    function endBot() {
-      isRunning = false;
-      clearInterval(interactionInterval);
-      clearInterval(timerInterval);
-      alert('Proceso completado');
+    function updateTimer() {
+      const remaining = Math.max(0, Math.ceil((targetTime - Date.now()) / 1000));
+      timeLeftEl.textContent = remaining;
+      
+      const progress = 100 - (remaining / botConfig.duration * 100);
+      progressBar.style.width = `${progress}%`;
+
+      if (remaining <= 0) {
+        clearInterval(timerInterval);
+        setTimeout(startCycle, 1000);
+      }
     }
 
     function showError(message) {
-      webview.innerHTML = `
+      webview.srcdoc = `
         <div class="error-message">
           <h2>⚠️ ${message}</h2>
           <a href="${botConfig?.url || '#'}" target="_blank">Abrir en nueva pestaña</a>
         </div>
       `;
     }
-
-    stopBtn.addEventListener('click', endBot);
   </script>
 </body>
 </html>

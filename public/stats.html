@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estadísticas - AcortadorPRO</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1><i class="fas fa-chart-bar"></i> Estadísticas Avanzadas</h1>
+      <a href="/" class="back-btn">
+        <i class="fas fa-arrow-left"></i> Volver
+      </a>
+    </header>
+
+    <main class="stats-container">
+      <div class="stats-header">
+        <div class="url-info">
+          <h2 id="shortUrlDisplay"></h2>
+          <p id="originalUrl"></p>
+        </div>
+        <div class="stats-summary">
+          <div class="stat-box">
+            <h3>Total Clicks</h3>
+            <p id="totalClicks">0</p>
+          </div>
+          <div class="stat-box">
+            <h3>Último Click</h3>
+            <p id="lastClick">N/A</p>
+          </div>
+          <div class="stat-box">
+            <h3>Creado</h3>
+            <p id="createdAt">N/A</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <h3><i class="fas fa-chart-line"></i> Actividad por Día</h3>
+        <canvas id="dailyChart"></canvas>
+      </div>
+
+      <div class="stats-grid">
+        <div class="referrers-card">
+          <h3><i class="fas fa-external-link-alt"></i> Fuentes de Tráfico</h3>
+          <ul id="referrersList">
+            <li>Cargando...</li>
+          </ul>
+        </div>
+        <div class="devices-card">
+          <h3><i class="fas fa-mobile-alt"></i> Dispositivos</h3>
+          <canvas id="devicesChart"></canvas>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/stats.js"></script>
+</body>
+</html>

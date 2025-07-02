@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acortador Profesional de URLs</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1><i class="fas fa-link"></i> AcortadorPRO</h1>
+      <p>La solución profesional para acortar y analizar tus enlaces</p>
+    </header>
+
+    <main class="main-content">
+      <div class="shortener-card">
+        <div class="input-group">
+          <input type="url" id="urlInput" placeholder="https://ejemplo.com" required>
+          <button id="shortenBtn" class="primary-btn">
+            <i class="fas fa-rocket"></i> Acortar
+          </button>
+        </div>
+        
+        <div class="advanced-options">
+          <div class="custom-code">
+            <label for="customCode"><i class="fas fa-pen"></i> Código personalizado:</label>
+            <div class="custom-input">
+              <span>https://midominio.com/</span>
+              <input type="text" id="customCode" placeholder="opcional" pattern="[A-Za-z0-9]{4,20}">
+            </div>
+          </div>
+        </div>
+
+        <div id="resultContainer" class="result-container hidden">
+          <div class="result-box">
+            <h3><i class="fas fa-check-circle"></i> ¡Enlace creado!</h3>
+            <div class="result-url">
+              <a id="shortUrl" target="_blank" rel="noopener"></a>
+              <button id="copyBtn" class="copy-btn">
+                <i class="far fa-copy"></i>
+              </button>
+            </div>
+            <a id="statsLink" class="stats-link" href="#">
+              <i class="fas fa-chart-bar"></i> Ver estadísticas
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="features">
+        <div class="feature-card">
+          <i class="fas fa-tachometer-alt"></i>
+          <h3>Rápido</h3>
+          <p>Redirección instantánea con tecnología 301</p>
+        </div>
+        <div class="feature-card">
+          <i class="fas fa-chart-line"></i>
+          <h3>Estadísticas</h3>
+          <p>Analiza clicks y tráfico en tiempo real</p>
+        </div>
+        <div class="feature-card">
+          <i class="fas fa-shield-alt"></i>
+          <h3>Seguro</h3>
+          <p>Protección contra spam y malware</p>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>© 2023 AcortadorPRO - Todos los derechos reservados</p>
+    </footer>
+  </div>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
